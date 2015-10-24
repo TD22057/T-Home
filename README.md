@@ -42,6 +42,8 @@ message.
 The communication protocol is based on the C code in the
 https://sbfspot.codeplex.com/ project.
 
+For a simple example and test, see the scripts in 
+python/tHome/sma/test/real
 
 Radio Thermostat
 ----------------
