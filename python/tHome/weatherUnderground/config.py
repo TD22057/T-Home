@@ -15,25 +15,23 @@ from ..util import config as C
 # Config file section name and defaults.
 configEntries = [
    # ( name, converter function, default value )
-   C.Entry( "host", str ),
-   C.Entry( "port", int, 9522 ),
-   C.Entry( "group", str, "USER" ),
-   C.Entry( "password", str, "0000" ),
+   C.Entry( "uploadUrl", str ),
+   C.Entry( "id", str ),
+   C.Entry( "password", str ),
+   C.Entry( "poll", int, 120 ),
+   C.Entry( "maxRate", int, 10 ),
+   C.Entry( "digits", int, 2 ),
+   C.Entry( "mqttWind", str, None ),
+   C.Entry( "mqttTemp", list, [] ),
+   C.Entry( "mqttRain", str, None ),
+   C.Entry( "mqttBarometer", str, None ),
+   C.Entry( "mqttHumidity", str, None ),
    C.Entry( "logFile", util.path.expand ),
    C.Entry( "logLevel", int, 20 ), # INFO
-   C.Entry( "pollPower", int, 10 ),
-   C.Entry( "pollEnergy", int, 600 ), # 10 minutes
-   C.Entry( "pollFull", int, 0 ), # disabled
-   C.Entry( "mqttEnergy", str, "elec/solar/meter" ),
-   C.Entry( "mqttPower", str, "elec/solar/instant" ),
-   C.Entry( "mqttFull", str, "elec/solar/detail" ),
-   C.Entry( "lat", float ), 
-   C.Entry( "lon", float ),
-   C.Entry( "timePad", float, 600 ), # 10 minutes
    ]
 
 #===========================================================================
-def parse( configDir, configFile='sma.py' ):
+def parse( configDir, configFile='weatherUnderground.py' ):
    return C.readAndCheck( configDir, configFile, configEntries )
 
 #===========================================================================
@@ -41,7 +39,7 @@ def log( config, logFile=None ):
    if not logFile:
       logFile = config.logFile
    
-   return util.log.get( "sma", config.logLevel, logFile )
+   return util.log.get( "weatherUnderground", config.logLevel, logFile )
 
 #===========================================================================
 

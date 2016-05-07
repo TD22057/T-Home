@@ -17,8 +17,6 @@ Logging object name: tHome.eagle
 #===========================================================================
 
 from . import config
-from . import get
-from . import messages
-from .parse import parse
+from .connect import connect
 
 #===========================================================================

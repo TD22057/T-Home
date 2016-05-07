@@ -1,0 +1,12 @@
+[Unit]
+Description=T-Home SMA solar inverter reader
+After=network.target
+
+[Service]
+EnvironmentFile=/home/ted/proj/tHome/systemd/tHome.env
+Type=simple
+User=ted
+ExecStart=/home/ted/proj/tHome/bin/tHome-sma.py --log /var/log/tHome/sma.log --configDir /home/ted/proj/tHome/conf
+
+[Install]
+WantedBy=multi-user.target

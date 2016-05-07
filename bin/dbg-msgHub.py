@@ -1,87 +1,65 @@
 #!/usr/bin/env python
 
+# dbg-msgHub.py -s "radio" "power/battery"
+
 import argparse
-import zmq
 import sys
 import pprint
 import time
+import StringIO
+import tHome.util as util
+import paho.mqtt.client as mqtt
 
 p = argparse.ArgumentParser( prog=sys.argv[0], 
                              description="Msg Hub debug output" )
-p.add_argument( "-b", "--brief", action="store_true",
-                help="One line brief output." )
-p.add_argument( "-p", "--port", type=int, default=22041,
-                help="Msg Hub port number to connect to." )
-p.add_argument( "-g", "--group", type=str, default="",
-                help="Message group to read." )
-p.add_argument( "-s", "--strings", type=str, nargs="*", default=[],
-                help="String to match." )
+p.add_argument( "-p", "--port", type=int, default=1883,
+                help="Broker port number to connect to." )
+p.add_argument( "-b", "--broker", type=str, default='127.0.0.1',
+                help="Broker host name to connect to." )
+p.add_argument( "-s", "--skip", nargs="*", default=[] )
 c = p.parse_args( sys.argv[1:] )
 
-ctx = zmq.Context()
-s = ctx.socket( zmq.SUB )
-s.setsockopt( zmq.SUBSCRIBE, c.group )
-s.connect( "tcp://127.0.0.1:%d" % c.port )
+class Client ( mqtt.Client ):
+   def __init__( self ):
+      mqtt.Client.__init__( self )
+      # Restore callbacks overwritten by stupid mqtt library
+      self.on_connect = Client.on_connect
+      self.on_message = Client.on_message
+      
+   def on_connect( self, userData, flags, rc ):
+      self.subscribe( '#' )
 
-def temp( x ):
-   if x["label"] == "Unknown":
-      return None
-   
-   h = x.get( 'humidity', -1 )
-   if h == -1:
-      return "t=%s" % ( x['temperature'] )
-   else:
-      return "t=%s h=%s" % ( x['temperature'], h )
-   
-valueMap = {
-   "electric.instant" : lambda x: "power=%s" % x['power'],
-   "electric.total" : lambda x: "c=%s p=%s" % ( x['consumed'], x['produced'] ),
-   "weather.temperature" : temp,
-   "weather.rain" : lambda x: "rain=%s" % x['rainfall'],
-   "weather.wind" : lambda x: "wind=%s at %s" % ( x['speed'], x['direction'] ),
-   "weather.pressure" : lambda x: "pressure=%s" % ( x['pressure'] ),
-   "hvac.thermostat" : lambda x: "mode=%s temp=%s vs %s" %
-                       ( x['tempState'], x['temperature'], x['target'] ),
-   "solar.power" : lambda x: "ac=%s W" % x["acPower"],
-   "solar.energy" : lambda x: "total=%s kWh" % ( x["dailyEnergy"]*1e-3 ),
-   }
+   def on_message( self, userData, msg ):
+      for k in c.skip:
+         if msg.topic.startswith( k ):
+            return
+      
+      data = util.json.loads( msg.payload )
+      s = StringIO.StringIO()
 
-def defaultPrint( data ):
-   print "Unknown: %s.%s" % ( data['group'], data['item'] )
-   pprint.pprint( data )
+      t = time.time()
+      dt = t - data['time']
+      s.write( "dt: %d  " % dt )
+
+      keys = data.keys()
+      keys.remove( 'time' )
+      for k in sorted( keys ):
+         s.write( "%s: %s  " % ( k, data[k] ) )
+      
+      print "Recv time: %.0f  %-30s %s" % ( t, msg.topic, s.getvalue() )
+      #pprint.pprint( data )
+      #print data
+
+      
+print "Connecting to %s:%d" % ( c.broker, c.port )
+client = Client()
+client.connect( c.broker, c.port )
+
+# loop_forever() and loop() block ctrl-c signals so it's hard to stop.
+# So start in a thread so we can ctrl-c out of this.
+client.loop_start()
 
 while True:
-   group, buf = s.recv_multipart()
-   t = time.time()
-   
-   data = zmq.utils.jsonapi.loads( buf )
-   if not c.brief:
-      print "====="
-      print "Recv Time:",t
-      pprint.pprint( data )
-      continue
+   pass
 
-   
-   l = "%s.%s" % ( data['group'], data['item'] )
-   func = valueMap.get( l, defaultPrint )
-
-   out = func( data )
-   if out is None:
-      defaultPrint( data )
-      continue
-      
-   show = True
-      
-   if c.strings:
-      show = False
-      for pat in c.strings:
-         if pat in out:
-            show = True
-            break
-         
-   if not show:
-      continue
-   
-   print "%.3f %s %s %s %s" % ( data['time'], data['group'],
-                                data['item'], data['label'], out )
-
+client.loop_stop( force=True )

@@ -1,28 +1,19 @@
 #===========================================================================
 #
-# SMA inverter module
+# Weather Underground web site access
 #
 #===========================================================================
 
-__doc__ = """Read SMA Solar inverter data.
+__doc__ = """Communicate with the Weather Underground web site.
 
-See Link and report for the main programming interfaces.
+Allows upload of weather data to a personal weather station.
 
-See cmdLine for a main program to poll the inverter and send out MQTT
-messges.
 """
 
 #===========================================================================
 
-from . import Auth
 from . import cmdLine
 from . import config
-from .Header import Header
-from .Link import Link
-from . import Reply
-from . import report
-from . import Request
 from . import start
-from . import tags
 
 #===========================================================================

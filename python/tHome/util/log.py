@@ -4,6 +4,8 @@
 #
 #=============================================================================
 import logging
+import logging.handlers
+import platform
 import sys
 import types
 from .Error import Error
@@ -57,7 +59,15 @@ def writeTo( log, fileName ):
    else:
       try:
          path.makeDirs( fileName )
-         handler = logging.FileHandler( fileName )
+
+         # Use the watcher on linux so that logrotate will work
+         # properly.  It will close and reopen the log file if the OS
+         # moves it.  Not supported on windows.
+         if platform.system() == "Windows":
+            handler = logging.FileHandler( fileName )
+         else:
+            handler = logging.handlers.WatchedFileHandler( fileName )
+            
       except ( Error, IOError ) as e:
          msg = "Error trying to open the log file '%s' for writing." % fileName 
          Error.raiseException( e, msg )

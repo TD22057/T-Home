@@ -26,6 +26,10 @@ class Data:
       return self.__dict__[key]
    
    #--------------------------------------------------------------------------
+   def __contains__( self, key ):
+      return key in self.__dict__
+   
+   #--------------------------------------------------------------------------
    def __str__( self ):
       out = StringIO.StringIO()
       self._formatValue( self, out, 3 )
@@ -78,8 +82,6 @@ class Data:
          
       else:
          out.write( "%s" % ( value ) )
-            
-            
             
       
 #=============================================================================

@@ -1,4 +1,5 @@
 from . import config
+from . import messages as msg
 #from . import convert
 #from .DeviceData import DeviceData
 #from .DeviceInfo import DeviceInfo
@@ -28,7 +29,7 @@ def device():
    xmlData = sendXml( xmlCmd )
    root = ET.fromstring( xmlData )
 
-   return DeviceInfo( root )
+   return msg.DeviceInfo( root )
    
 #==========================================================================
 def instant():
@@ -38,7 +39,7 @@ def instant():
    xmlData = sendXml( xmlCmd )
    root = ET.fromstring( xmlData )
 
-   return InstantDemand( root )
+   return msg.InstantaneousDemand( root )
 
 #==========================================================================
 def history( start ):
@@ -70,7 +71,7 @@ def instantHistory( interval ):
    xmlData = "<root>%s</root>" % xmlData
    root = ET.fromstring( xmlData )
 
-   return Reading.xmlToList( root )
+   return msg.Reading.xmlToList( root )
    
 #==========================================================================
 def totalHistory( interval ):
@@ -86,7 +87,7 @@ def totalHistory( interval ):
    xmlData = "<root>%s</root>" % xmlData
    root = ET.fromstring( xmlData )
    
-   return Reading.xmlToList( root )
+   return msg.Reading.xmlToList( root )
 
 #==========================================================================
 def sendXml( xmlCmd ):

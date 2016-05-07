@@ -9,8 +9,8 @@
 import argparse
 import sys
 import time
-import zmq
-import tHome
+import json
+import tHome as T
 
 #===========================================================================
 
@@ -30,41 +30,51 @@ p.add_argument( "-l", "--log", metavar="logFile",
                 "to log to the screen." )
 c = p.parse_args( sys.argv[1:] )
 
-# Parse all the config files and extract the eagle server data.
-data = tHome.config.parse( c.configDir )
-therm = tHome.thermostat.config.update( data )
-hub = tHome.msgHub.config.update( data )
+# Parse the thermostat config file.
+cfg = T.thermostat.config.parse( c.configDir )
+log = T.thermostat.config.log( cfg, c.log )
 
-# Override the log file.
-if c.log:
-   therm.LogFile = tHome.config.toPath( c.log )
+# Create the MQTT client and connect it to the broker.
+client = T.broker.connect( c.configDir, log )
 
-log = tHome.util.log.get( "thermostat" )
-log.setLevel( therm.LogLevel )
-if therm.LogFile:
-   log.writeTo( therm.LogFile )
+# Handle set messages being set to the thermostats.
+def on_message( client, userData, msg ):
+   for t in cfg.thermostats:
+      if mqtt.topic_matches_sub( t.mqttSetTopic, msg.topic ):
+         t.processSet( client, msg )
+         return
 
-addr = "%s:%d" % ( hub.Host, hub.InputPort )
-log.info( "Connecting to hub at %s" % addr )
-zmqContext = zmq.Context.instance()
-zmqSock = zmqContext.socket( zmq.PUB )
-zmqSock.connect( "tcp://%s" % ( addr ) )
+client.on_message = on_message
+
+# Subscribe to the set messages.
+for t in cfg.thermostats:
+   print t
+   client.subscribe( t.mqttSetTopic )
+
+# Start the MQTT as a background thread. This way we can run the web
+# server as the main thread here.
+client.loop_start()
 
 while True:
    t0 = time.time()
-   for t in therm.thermostats:
+   for t in cfg.thermostats:
       try:
+         # Poll the thermostat for status.
          t.status()
+
+         # Publish any messages.
          msgs = t.messages()
-         for m in msgs:
-            buf = zmq.utils.jsonapi.dumps( m )
-            zmqSock.send_multipart( [ m['group'], buf ] )
+         for topic, msg in msgs:
+            payload = json.dumps( msg )
+            client.publish( topic, payload )
          
-      except:
-         log.exception( "Error getting thermostat status." )
+      except Exception as e:
+         # This prints a stack trace which is more than we really want.
+         #log.exception( "Error getting thermostat status." )
+         log.error( "Error getting thermostat status: " + str( e ) )
 
    dt = time.time() - t0
-   delay = max( therm.PollTime, therm.PollTime-dt )
+   delay = max( cfg.pollTime, cfg.pollTime-dt )
    time.sleep( delay )
          
 

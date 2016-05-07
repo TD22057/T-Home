@@ -4,13 +4,13 @@
 #
 #===========================================================================
 
+import json
 import requests
 import time
 from .. import util 
 
 #===========================================================================
 class Thermostat:
-
    # Temperature mode
    tmode = { 0 : "off", 1 : "heat", 2 : "cool", 3 : "auto" }
    # Active heating/cooling flag.
@@ -22,31 +22,42 @@ class Thermostat:
    fstate = { 0 : "off", 1 : "on" }
    
    #------------------------------------------------------------------------
-   def __init__( self, label, ipAddress, room=None ):
+   def __init__( self, label, host, mqttTempTopic, mqttModeTopic,
+                 mqttStateTopic, mqttSetTopic ):
       self.label = label
-      self.ip = ipAddress
-      self.room = room if room is not None else label
+      self.host = host
+      self.mqttTempTopic = mqttTempTopic
+      self.mqttModeTopic = mqttModeTopic
+      self.mqttStateTopic = mqttStateTopic
+      self.mqttSetTopic = mqttSetTopic
 
       self._log = util.log.get( "thermostat" )
       self._lastStatus = None
 
+      
    #------------------------------------------------------------------------
    def status( self ):
-      self._log.info( "%s:%s Getting status" % ( self.ip, self.label ) )
+      self._log.info( "%s:%s Getting status" % ( self.host, self.label ) )
       
-      url = "http://%s/tstat" % self.ip
+      url = "http://%s/tstat" % self.host
       r = requests.get( url )
 
-      self._log.info( "%s:%s Received status %s" % ( self.ip, self.label,
+      self._log.info( "%s:%s Received status %s" % ( self.host, self.label,
                                                      r.status_code ) )
       if r.status_code != requests.codes.ok:
          self._lastStatus = None
          e = util.Error( r.text )
          e.add( "Error requesting status from the thermostat '%s' at %s" %
-                ( self.label, self.ip ) )
+                ( self.label, self.host ) )
          raise e
 
       d = r.json()
+
+      tempControl = 'auto'
+      if d["override"]:
+         tempControl = 'override'
+      elif d['hold']:
+         tempControl = 'hold'
 
       m = util.Data(
          # Unix time.
@@ -62,8 +73,7 @@ class Thermostat:
          # Is the fan current on?
          fanState = self.fstate[ d["fstate" ] ],
          # program or override mode
-         override = bool( d["override"] ),
-         hold = bool( d["hold"] ),
+         tempControl = tempControl,
          )
 
       if "t_heat" in d:
@@ -71,7 +81,7 @@ class Thermostat:
       else:
          m.target = d["t_cool"]
          
-      self._log.info( "%s:%s Received: %s" % ( self.ip, self.label, m ) )
+      self._log.info( "%s:%s Received: %s" % ( self.host, self.label, m ) )
       
       self._lastStatus = m
       return m
@@ -84,36 +94,56 @@ class Thermostat:
 
       s = self._lastStatus
       msgs = [
-         {
-            "group" : "weather",
-            "item" : "temperature",
-            "label" : self.room,
-            "time" : s.time,
-            "temperature" : s.temperature,
-            },
-         {
-            "group" : "hvac",
-            "item" : "thermostat",
-            "label" : self.label,
-            "time" : s.time,
-            "target" : s.target,
-            "temperature" : s.temperature,
-            "fanMode" : s.fanMode,
-            "fanState" : s.fanState,
-            "tempMode" : s.tempMode,
-            "tempState" : s.tempState,
-            "override" : s.override,
-            "hold" : s.hold,
-            },
+         # tuple of ( topic, message )
+         ( self.mqttTempTopic, {
+            'time' : s.time,
+            'temp' : s.temperature,
+            } ),
+         ( self.mqttModeTopic, {
+            'time' : s.time,
+            'sys' : s.tempMode,
+            'fan' : s.fanMode,
+            'temp' : s.tempControl,
+            } ),
+         ( self.mqttStateTopic, {
+            'time' : s.time,
+            'active' : s.tempState,
+            'fan' : s.fanState,
+            'target' : s.target,
+            'temp' : s.temperature,
+            } ),
          ]
          
       return msgs
    
    #------------------------------------------------------------------------
+   def processSet( self, client, msg ):
+      data = json.loads( msg.payload )
+      replyTopic = msg.topic + "/" + data['id']
+
+      status = None
+      if '/temp' in msg.topic:
+         value = data['temp']
+         # TODO: set temperature
+         status = 0
+         msg = ""
+      elif '/mode' in msg.topic:
+         sysMode = data['sys'] # off/heat/cool/auto
+         fanMode = data['fan'] # on/auto
+         # TODO: set mode
+         status = 0
+         msg = ""
+
+      if status is not None:
+         reply = { time : time.time(), error : status, msg : msg }
+         payload = json.dumps( reply )
+         client.publish( replyTopic, payload )
+   
+   #------------------------------------------------------------------------
    def __str__( self ):
       return """Thermostat(
    Label = '%s',
-   IP = '%s',
-   )""" % ( self.label, self.ip )
+   Host = '%s',
+   )""" % ( self.label, self.host )
    
    #------------------------------------------------------------------------

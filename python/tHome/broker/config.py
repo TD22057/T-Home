@@ -13,24 +13,29 @@ from ..util import config as C
 #===========================================================================
 
 # Config file section name and defaults.
-configEntries = [
+configEntries = {
    # ( name, converter function, default value )
-   C.Entry( "httpPort", int, 22042 ),
-   C.Entry( "mqttEnergy", str ),
-   C.Entry( "mqttPower", str ),
-   C.Entry( "logFile", util.path.expand ),
-   C.Entry( "logLevel", int, 20 ), # INFO
-   ]
+   C.Entry( "host", str ),
+   C.Entry( "port", int, 1883 ),
+   C.Entry( "keepAlive", int, 60 ),
+   C.Entry( "user", str ),
+   C.Entry( "password", str ),
+   C.Entry( "ca_certs", list ),
+   C.Entry( "certFile", util.path.expand ),
+   C.Entry( "keyFile", util.path.expand ),
+   }
 
 #===========================================================================
-def parse( configDir, configFile='eagle.py' ):
-   return C.readAndCheck( configDir, configFile, configEntries )
+def parse( configDir, configFile='broker.py' ):
+   cfg = C.readAndCheck( configDir, configFile, configEntries )
+
+   if cfg.ca_certs:
+      for i in range( len( cfg.ca_certs ) ):
+         cfg.ca_certs[i] = util.path.expand( cfg.ca_certs[i] )
+
+   return cfg
 
 #===========================================================================
-def log( config, logFile=None ):
-   if not logFile:
-      logFile = config.logFile
-   
-   return util.log.get( "eagle", config.logLevel, logFile )
 
-#===========================================================================
+
+

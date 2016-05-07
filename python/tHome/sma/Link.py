@@ -23,7 +23,9 @@ class Link:
    """
    def __init__( self, ip, port=9522, group="USER", password="0000",
                  connect=True, timeout=120, decode=True, raw=False ):
-      assert( group == "USER" or group == "INSTALLER" )
+      if group != "USER" and group != "INSTALLER":
+          raise util.Error( "Invalid group '%s'.  Valid groups are 'USER' "
+                            "'INSTALLER'." % group )
       
       self.ip = ip
       self.port = port

@@ -1,0 +1,13 @@
+[Unit]
+Description=T-Home electric meter reader process
+After=network.target
+
+[Service]
+EnvironmentFile=/home/ted/proj/tHome/systemd/tHome.env
+Type=simple
+User=ted
+ExecStart=/home/ted/proj/tHome/bin/tHome-eagle.py --log /var/log/tHome/eagle.log --configDir /home/ted/proj/tHome/conf
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,15 @@
+[Unit]
+Description=T-Home WIFI thermostat reader
+After=network.target
+
+[Service]
+EnvironmentFile=/home/ted/proj/tHome/systemd/tHome.env
+Type=simple
+User=ted
+ExecStart=/home/ted/proj/tHome/bin/tHome-thermostat.py --log /var/log/tHome/thermostat.log --configDir /home/ted/proj/tHome/conf
+
+[Install]
+WantedBy=multi-user.target
+
+
+

@@ -7,41 +7,57 @@
 __doc__ = """Config file parsing.
 """
 
-import re
-from .. import config as C
+from .. import util
+from ..util import config as C
 from .Thermostat import Thermostat
 
 #===========================================================================
 
 # Config file section name and defaults.
-sectionDef = {
-   "Thermostat" : [
-      # ( name, converter function, default value )
-      ( "PollTime", float, 60 ),
-      ( "LogFile", C.toPath, None ),
-      ( "LogLevel", int, 20 ), # INFO
-      ],
-   }
+configEntries = [
+   # ( name, converter function, default value )
+   C.Entry( "logFile", util.path.expand ),
+   C.Entry( "logLevel", int, 20 ), # INFO
+   C.Entry( "thermostats", list ),
+   ]
+
+thermostatEntries = [
+   # ( name, converter function, default value )
+   C.Entry( "host", str ),
+   C.Entry( "label", str ),
+   C.Entry( "mqttTempTopic", str ),
+   C.Entry( "mqttModeTopic", str ),
+   C.Entry( "mqttStateTopic", str ),
+   C.Entry( "mqttSetTopic", str ),
+   ]
 
 #===========================================================================
-def update( data ):
-   C.update( data, sectionDef )
+def parse( configDir, configFile='thermostat.py' ):
+   m = C.readAndCheck( configDir, configFile, configEntries )
 
-   pat = re.compile( r"Thermostat_(\d+)" )
+   # Replace the thermostat dict inputs with Thermostat objecdts.
+   m.thermostats = parseThermostats( m.thermostats )
+   
+   return m
 
-   mdata = data.Thermostat
-   mdata.thermostats = []
+#===========================================================================
+def parseThermostats( entries ):
+   assert( len( entries ) > 0 )
+
+   thermostats = []
+   for e in entries:
+      C.check( e, thermostatEntries )
+      thermostats.append( Thermostat( **e ) )
+
+   return thermostats
+
+#===========================================================================
+def log( config, logFile=None ):
+   if not logFile:
+      logFile = config.logFile
    
-   for s in data._config.sections():
-      m = pat.match( s )
-      if m:
-         t = Thermostat( data._config.get( s, "Label" ),
-                         data._config.get( s, "IP" ),
-                         data._config.get( s, "Room" ) )
-         mdata.thermostats.append( t )
-         
-   return mdata
-   
+   return util.log.get( "thermostat", config.logLevel, logFile )
+
 #===========================================================================
 
 
