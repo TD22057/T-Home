@@ -13,7 +13,7 @@ from . import messages
 # </rainForest>
 def parse( xmlText ):
    root = ET.fromstring( xmlText )
-   assert( root.tag == "rainForest" )
+   assert( root.tag == "rainforest" )
 
    child = root[0]
 
